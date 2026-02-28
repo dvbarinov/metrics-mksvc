@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.dialects.postgresql import JSONB
@@ -6,7 +6,7 @@ from app.core.db import get_session
 from app.models.metric import Metric
 from app.schemas.metric import MetricCreate, MetricRead, HistoryQuery
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, List
 import json
 
 router = APIRouter()

@@ -1,6 +1,6 @@
 from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.db import async_session
+from app.core.db import get_session
 from app.models.metric import Metric
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
@@ -20,7 +20,7 @@ async def aggregate_last_window(
         group_by_tags: список тегов для группировки (например: ["region", "version"])
         filter_tags: фильтр по тегам (например: {"env": "prod"})
     """
-    async with async_session() as session:
+    async with get_session() as session:
         since = datetime.utcnow() - timedelta(seconds=window_seconds)
 
         # Базовый запрос
@@ -88,4 +88,3 @@ async def aggregate_last_window(
             aggregates.append(agg)
 
         return aggregates
-    
