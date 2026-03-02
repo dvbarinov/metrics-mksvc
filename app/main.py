@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from app.api.v1.router import api_router
-from app.core.db import init_db, close_db
+from app.core.db import init_db, close_db, check_db_connection
 from app.core.broadcaster import metrics_aggregator, manager
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -32,9 +32,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Startup
     logger.info("🚀 Starting up application...")
 
+    # 1. Проверка подключения к БД
+    db_ok = await check_db_connection()
+    if not db_ok:
+        logger.error("❌ Cannot start without database connection")
+        raise RuntimeError("Database connection failed")
+
     try:
         # Инициализация таблиц БД (в продакшене лучше через Alembic)
-        if os.getenv("AUTO_MIGRATE", "false").lower() == "true":
+        if os.getenv("AUTO_MIGRATE", "true").lower() == "true":
             await init_db()
             logger.info("✅ Database tables initialized")
 
@@ -46,7 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
-        raise
+        raise e
 
     finally:
         # Shutdown
@@ -89,7 +95,7 @@ def create_app() -> FastAPI:
     # CORS (разрешаем запросы с фронтенда)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+        allow_origins=["*"], #allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -113,6 +119,9 @@ def create_app() -> FastAPI:
     async def general_exception_handler(request: Request, exc: Exception):
         """Обработка непредвиденных ошибок."""
         logger.error(f"Internal error: {exc}", exc_info=True)
+        # Не возвращаем 500 для WebSocket, чтобы не закрывать соединение лишними ответами
+        if request.url.path.startswith("/api/v1/ws"):
+            return JSONResponse(status_code=200, content={"detail": "Internal Error"})
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "Internal Server Error"},

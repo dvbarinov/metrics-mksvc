@@ -1,24 +1,33 @@
+import asyncio
 import os
+import logging
 from typing import AsyncGenerator
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool  # Для отладки можно отключить пул
+
+logger = logging.getLogger(__name__)
 
 # Конфигурация из переменных окружения
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/metrics_db"
+    "postgresql+asyncpg://postgres:12345@localhost:5432/metrics_db"
 )
 
 # Создаем асинхронный движок
 # pool_size: количество постоянных соединений в пуле
 # max_overflow: количество дополнительных соединений при пиковой нагрузке
+#- engine = create_async_engine(DATABASE_URL, echo=True)
 engine = create_async_engine(
     DATABASE_URL,
     echo=os.getenv("SQL_ECHO", "false").lower() == "true",  # Логирование SQL
-    pool_size=10,
-    max_overflow=20,
+    pool_size=5,
+    max_overflow=10,
     pool_pre_ping=True,  # Проверка соединения перед использованием
-    pool_recycle=3600,  # Пересоздание соединения через час
+    pool_recycle=300,  # Пересоздание соединения каждые 5 минут # Пересоздание соединения через час
+    # poolclass=NullPool,  # Раскомментировать для отладки, если есть проблемы с пулом
 )
 
 # Фабрика сессий
@@ -51,6 +60,18 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 
+async def check_db_connection() -> bool:
+    """Проверка доступности БД при старте."""
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection successful")
+            return True
+    except Exception as e:
+        logger.error(f"❌ Database connection failed: {e}")
+        return False
+
+
 # Глобальная сессия для фоновых задач (broadcaster)
 # В продакшене лучше передавать сессию явно, но для фоновых задач допустим такой паттерн
 async def get_db_session_for_background() -> AsyncSession:
@@ -73,10 +94,19 @@ class DatabaseSession:
 
 async def init_db():
     """Инициализация БД (создание таблиц)."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✅ Database tables created")
+    except Exception as e:
+        logger.error(f"❌ Failed to create tables: {e}")
+        raise
 
 
 async def close_db():
     """Закрытие соединений при выключении приложения."""
     await engine.dispose()
+    logger.info("🔒 Database connections closed")
+
+if __name__ == "__main__":
+    asyncio.run(check_db_connection())

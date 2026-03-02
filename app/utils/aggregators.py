@@ -1,6 +1,6 @@
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.db import get_session
+from app.core.db import get_session, async_session_maker
 from app.models.metric import Metric
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
@@ -11,7 +11,7 @@ async def aggregate_last_window(
         group_by_tags: Optional[List[str]] = None,
         filter_tags: Optional[Dict[str, str]] = None
 ) -> List[Dict]:
-    async with get_session() as session:
+    async with async_session_maker() as session:
         since = datetime.utcnow() - timedelta(seconds=window_seconds)
 
         # Базовые колонки
@@ -30,7 +30,12 @@ async def aggregate_last_window(
         columns.append(func.percentile_cont(0.95).within_group(Metric.value.asc()).label("p95"))
         columns.append(func.percentile_cont(0.99).within_group(Metric.value.asc()).label("p99"))
 
-        query = select(*columns).where(Metric.timestamp >= since)
+        query = select(
+            Metric.service_name,
+            Metric.metric_name,
+            func.avg(Metric.value).label("avg_value"),
+            func.count(Metric.value).label("count")
+        ).where(Metric.timestamp >= since)
 
         # Фильтрация по тегам
         if filter_tags:
