@@ -1,15 +1,6 @@
-# alembic/env.py
-
 import asyncio
 import os
 import sys
-if sys.platform == "win32":
-    # Форсируем использование pytz на Windows
-    try:
-        import pytz
-        pytz.UTC  # Проверка доступности
-    except ImportError:
-        pass  # Если pytz нет, Alembic попробует dateutil
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -20,11 +11,12 @@ from alembic import context
 
 # --- Добавляем путь к проекту в sys.path ---
 # Это нужно, чтобы Alembic видел ваши модели
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # --- Импорт моделей для авто-генерации миграций ---
 # Импортируйте ВСЕ модели, которые должны отслеживаться
-from app.models.metric import Base  # Base из вашего models/__init__.py или конкретной модели
+from app.core.db import Base  # Base из вашего models/__init__.py или конкретной модели
+from app.models.metric import Metric  # noqa: F401 - импортируем для регистрации
 
 # --- Alembic Config ---
 config = context.config
@@ -36,6 +28,9 @@ if config.config_file_name is not None:
 # --- Target metadata для авто-генерации ---
 target_metadata = Base.metadata
 
+# --- Проверка для отладки ---
+# Раскомментировать, чтобы увидеть, какие таблицы видит Alembic
+print(f"📊 Tables found: {list(target_metadata.tables.keys())}")
 
 # --- Функция для получения URL из env или config ---
 def get_url() -> str:
