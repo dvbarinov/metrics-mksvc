@@ -6,4 +6,5 @@ pydantic>=2.6.0
 pydantic-settings>=2.1.0
 alembic>=1.13.0
 python-dotenv>=1.0.0
+python-dateutil
 prometheus-fastapi-instrumentator>=6.1.0

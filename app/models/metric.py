@@ -2,7 +2,8 @@ from sqlalchemy import Column, Integer, Float, String, DateTime, func, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
 
-Base = declarative_base()
+from app.core.db import Base
+
 
 class Metric(Base):
     __tablename__ = "metrics"

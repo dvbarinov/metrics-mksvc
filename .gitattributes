@@ -1,0 +1,16 @@
+# .gitattributes
+
+# Все текстовые файлы в UTF-8
+* text=auto eol=lf
+
+# Явно указываем кодировку для конфигов
+*.ini text eol=lf working-tree-encoding=UTF-8
+*.py text eol=lf working-tree-encoding=UTF-8
+*.mako text eol=lf working-tree-encoding=UTF-8
+*.md text eol=lf working-tree-encoding=UTF-8
+*.txt text eol=lf working-tree-encoding=UTF-8
+
+# Бинарные файлы
+*.png binary
+*.jpg binary
+*.ico binary
