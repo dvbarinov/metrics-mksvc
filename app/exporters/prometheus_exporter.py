@@ -6,14 +6,12 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
     REGISTRY
 )
-from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily
 from fastapi import Response
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
-import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.metric import Metric
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 import re
 
 # Кэш метрик для производительности
@@ -175,8 +173,8 @@ class PrometheusExporter:
 
                 elif metric_type == 'histogram':
                     # Базовое значение
-                    lines.append(f'{base_name}_sum{label_str} {instance["avg_value"] * instance["count"]}')
-                    lines.append(f'{base_name}_count{label_str} {instance["count"]}')
+                    lines.append(f'{base_name}_sum{{{label_str}}} {instance["avg_value"] * instance["count"]}')
+                    lines.append(f'{base_name}_count{{{label_str}}} {instance["count"]}')
 
                     # Bucket'ы для гистограммы
                     if instance['p95'] is not None:
@@ -228,7 +226,7 @@ class PrometheusExporter:
             sanitized_value = sanitize_label_value(value)
             label_parts.append(f'{sanitized_key}="{sanitized_value}"')
 
-        return ', ' + ', '.join(label_parts) if label_parts else ''
+        return ', '.join(label_parts) if label_parts else ''
 
 
 # Singleton экземпляр
