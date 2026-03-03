@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
 from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import CONTENT_TYPE_LATEST
@@ -52,10 +52,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.info("📊 Metrics aggregator started")
 
         # Инициализация инструментатора Prometheus
+        # Исправлено: убраны несуществующие параметры
         Instrumentator(
-            should_respond=lambda request: request.url.path != "/metrics/internal",
-            metric_namespace="fastapi",
-            metric_name="requests",
+            should_group_status_codes=True,
+            should_ignore_untemplated=True,
+            should_respect_env_var=False,
+            should_instrument_requests_inprogress=True,
+            # Исключаем эндпоинты метрик и здоровья из мониторинга
+            excluded_handlers=["/metrics", "/metrics/internal", "/health", "/ready", "/live", "/docs", "/redoc", "/openapi.json"],
         ).instrument(app).expose(
             app,
             endpoint="/metrics/internal",
