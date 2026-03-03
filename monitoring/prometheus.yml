@@ -7,12 +7,14 @@ global:
 scrape_configs:
   # Сбор метрик с нашего сервиса
   - job_name: 'metrics-dashboard'
-    static_configs:
-      - targets: ['metrics-api:8000']
     metrics_path: '/api/v1/prometheus/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s
-
+    static_configs:
+      - targets:
+          # 🐧 Linux: используем IP хоста в docker0
+          # 🍎🪟 Mac/Windows: host.docker.internal работает
+          - 'host.docker.internal:8000'
     # Опционально: авторизация
     # bearer_token: 'your-token-here'
 
@@ -24,10 +26,13 @@ scrape_configs:
 
   # Внутренние метрики самого сервиса (от FastAPI Instrumentator)
   - job_name: 'metrics-dashboard-internal'
-    static_configs:
-      - targets: ['metrics-api:8000']
     metrics_path: '/metrics/internal'
     scrape_interval: 15s
+    static_configs:
+      - targets:
+          # 🐧 Linux: используем IP хоста в docker0
+          # 🍎🪟 Mac/Windows: host.docker.internal работает
+          - 'host.docker.internal:8000'
 
   # Опционально: Prometheus сам себя
   - job_name: 'prometheus'
