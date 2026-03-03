@@ -16,7 +16,6 @@ from app.core.db import init_db, close_db, check_db_connection
 from app.core.broadcaster import metrics_aggregator, manager
 from app.exporters.prometheus_exporter import exporter
 
-
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -50,22 +49,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Запуск фоновой задачи агрегации метрик
         aggregator_task = asyncio.create_task(metrics_aggregator())
         logger.info("📊 Metrics aggregator started")
-
-        # Инициализация инструментатора Prometheus
-        # Исправлено: убраны несуществующие параметры
-        Instrumentator(
-            should_group_status_codes=True,
-            should_ignore_untemplated=True,
-            should_respect_env_var=False,
-            should_instrument_requests_inprogress=True,
-            # Исключаем эндпоинты метрик и здоровья из мониторинга
-            excluded_handlers=["/metrics", "/metrics/internal", "/health", "/ready", "/live", "/docs", "/redoc", "/openapi.json"],
-        ).instrument(app).expose(
-            app,
-            endpoint="/metrics/internal",
-            should_gzip=True
-        )
-        logger.info("📈 Prometheus internal metrics enabled at /metrics/internal")
 
         yield
 
@@ -119,6 +102,23 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Инициализация инструментатора Prometheus
+    # Исправлено: убраны несуществующие параметры
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        should_instrument_requests_inprogress=True,
+        # Исключаем эндпоинты метрик и здоровья из мониторинга
+        excluded_handlers=["/metrics", "/metrics/internal", "/health", "/ready", "/live", "/docs", "/redoc",
+                           "/openapi.json"],
+    ).instrument(app).expose(
+        app,
+        endpoint="/metrics/internal",
+        should_gzip=True
+    )
+    logger.info("📈 Prometheus internal metrics enabled at /metrics/internal")
 
     # --- Exception Handlers ---
 
