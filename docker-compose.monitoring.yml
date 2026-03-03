@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_v:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    volumes:
+      - grafana_v:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Metrics Dashboard API (наш сервис)
+  metrics-api:
+    build: .
+    container_name: metrics-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/metrics
+    volumes:
+      - .:/app
+    networks:
+      - monitoring
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: metrics-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=metrics
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - db_v:/var/lib/postgresql/data
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+volumes:
+  prometheus_v:
+  grafana_v:
+  db_v:
+
+networks:
+  monitoring:
+    driver: bridge
