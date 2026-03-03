@@ -33,8 +33,7 @@ services:
       - GF_SERVER_ROOT_URL=http://localhost:3001
     volumes:
       - grafana_v:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - monitoring
     depends_on:
