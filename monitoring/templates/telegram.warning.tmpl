@@ -1,5 +1,5 @@
 {{ define "telegram.critical" }}
-🚨🚨🚨 <b>CRITICAL ALERT</b> 🚨🚨🚨
+🚨 <b>ALERT</b> 🚨
 
 <b>{{ .CommonAnnotations.summary }}</b>
 
@@ -16,7 +16,7 @@ Value: {{ .Value }}
 
 Started: {{ .StartsAt.Format "15:04:05" }}
 {{ if .EndsAt.IsZero }}
-Status: 🔥 FIRING
+Status: FIRING
 {{ else }}
 Status: ✅ RESOLVED
 {{ end }}
