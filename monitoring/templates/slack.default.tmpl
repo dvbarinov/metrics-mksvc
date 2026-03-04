@@ -1,0 +1,28 @@
+{{ define "slack.default.title" }}
+{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}
+{{ end }}
+
+{{ define "slack.default.text" }}
+*Summary:* {{ .CommonAnnotations.summary }}
+
+*Description:* {{ .CommonAnnotations.description }}
+
+*Severity:* {{ .CommonLabels.severity }}
+*Service:* {{ .CommonLabels.service }}
+
+{{ range .Alerts }}
+---
+*Instance:* {{ .Labels.instance }}
+*Region:* {{ .Labels.region }}
+*Value:* {{ .Value }}
+
+*Started:* {{ .StartsAt.Format "15:04:05" }}
+{{ if .EndsAt.IsZero }}
+*Status:* :fire: FIRING
+{{ else }}
+*Status:* :white_check_mark: RESOLVED at {{ .EndsAt.Format "15:04:05" }}
+{{ end }}
+{{ end }}
+
+<http://localhost:9090/alerts|View in Prometheus> | <http://localhost:3001|View in Grafana>
+{{ end }}

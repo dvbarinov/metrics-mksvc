@@ -1,0 +1,26 @@
+{{ define "slack.warning.text" }}
+:warning: *WARNING* :warning:
+
+*{{ .CommonAnnotations.summary }}*
+
+{{ .CommonAnnotations.description }}
+
+*Severity:* {{ .CommonLabels.severity }}
+*Service:* {{ .CommonLabels.service }}
+
+{{ range .Alerts }}
+---
+*Instance:* {{ .Labels.instance }}
+*Region:* {{ .Labels.region }}
+*Value:* {{ .Value }}
+
+*Started:* {{ .StartsAt.Format "15:04:05" }}
+{{ if .EndsAt.IsZero }}
+:fire: *Status:* FIRING
+{{ else }}
+:white_check_mark: *Status:* RESOLVED at {{ .EndsAt.Format "15:04:05" }}
+{{ end }}
+{{ end }}
+
+<http://localhost:9090/alerts|View in Prometheus> | <http://localhost:3001|View in Grafana>
+{{ end }}
