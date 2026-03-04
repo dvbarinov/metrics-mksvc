@@ -1,0 +1,136 @@
+global:
+  # SMTP настройки для отправки почты
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'your-email@gmail.com'
+  smtp_auth_username: 'your-email@gmail.com'
+  smtp_auth_password: 'your-app-password'
+  smtp_require_tls: true
+
+  # Slack webhook
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+  # Telegram bot
+  telegram_api_url: 'https://api.telegram.org'
+
+  # Время ожидания перед отправкой первого уведомления
+  resolve_timeout: 5m
+
+# Шаблоны для уведомлений
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Маршрутизация алертов
+route:
+  # Группировка алертов
+  group_by: ['alertname', 'service', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+  # Получатель по умолчанию
+  receiver: 'default-receiver'
+
+  # Дочерние маршруты
+  routes:
+    # Критические алерты → пейджер + срочные каналы
+    - match:
+        severity: 'critical'
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 15m
+
+    # Предупреждения → обычные каналы
+    - match:
+        severity: 'warning'
+      receiver: 'warning-alerts'
+      group_wait: 1m
+
+    # Информационные → логирование
+    - match:
+        severity: 'info'
+      receiver: 'info-alerts'
+      group_wait: 5m
+
+# Получатели уведомлений
+receivers:
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'team@example.com'
+        send_resolved: true
+        html: '{{ template "email.default.html" . }}'
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+
+    slack_configs:
+      - channel: '#alerts'
+        send_resolved: true
+        title: '{{ template "slack.default.title" . }}'
+        text: '{{ template "slack.default.text" . }}'
+        username: 'Prometheus Alert'
+        icon_emoji: ':warning:'
+
+    webhook_configs:
+      - url: 'http://localhost:9090/webhook'
+        send_resolved: true
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'oncall@example.com,manager@example.com'
+        send_resolved: true
+        html: '{{ template "email.critical.html" . }}'
+
+    slack_configs:
+      - channel: '#critical-alerts'
+        send_resolved: true
+        title: ':rotating_light: [CRITICAL] {{ .CommonLabels.alertname }}'
+        text: '{{ template "slack.critical.text" . }}'
+        username: '🚨 CRITICAL ALERT'
+        icon_emoji: ':rotating_light:'
+
+    pagerduty_configs:
+      - routing_key: '<your-pagerduty-integration-key>'
+        send_resolved: true
+
+    telegram_configs:
+      - bot_token: '8682798803:AAGRb1XJZrtSRcoKSlVCPmNp0indd3aJkQ4'
+        chat_id: 8379692353
+        send_resolved: true
+        message: '{{ template "telegram.critical" . }}'
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'team@example.com'
+        send_resolved: true
+
+    slack_configs:
+      - channel: '#warnings'
+        send_resolved: true
+        title: ':warning: [WARNING] {{ .CommonLabels.alertname }}'
+        text: '{{ template "slack.warning.text" . }}'
+
+    webhook_configs:
+      - url: 'http://localhost:9090/webhook-warning'
+        send_resolved: true
+
+  - name: 'info-alerts'
+    slack_configs:
+      - channel: '#info'
+        send_resolved: false
+        title: ':information_source: [INFO] {{ .CommonLabels.alertname }}'
+        text: '{{ template "slack.info.text" . }}'
+
+# Подавление алертов (inhibition rules)
+inhibit_rules:
+  # Если есть критический алерт, подавлять предупреждения для того же сервиса
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'instance']
+
+  # Если сервис недоступен, подавлять все остальные алерты для него
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['service', 'instance']

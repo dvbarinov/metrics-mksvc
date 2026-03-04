@@ -4,6 +4,19 @@ global:
   external_labels:
     monitor: 'metrics-dashboard'
 
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      scheme: http
+      timeout: 10s
+
+# Правила алертов
+rule_files:
+  - "/etc/prometheus/rules/alerts.yml"
+
 scrape_configs:
   # Сбор метрик с нашего сервиса
   - job_name: 'metrics-dashboard'
@@ -38,3 +51,8 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+
+  # Alertmanager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
