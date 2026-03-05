@@ -14,7 +14,6 @@
 ---
 *Instance:* {{ .Labels.instance }}
 *Region:* {{ .Labels.region }}
-*Value:* {{ .Value }}
 
 *Started:* {{ .StartsAt.Format "15:04:05" }}
 {{ if .EndsAt.IsZero }}
