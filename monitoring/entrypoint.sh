@@ -17,10 +17,17 @@ VARS=$(env | cut -d= -f1 | sed 's/^/${/;s/$/}/')
 # Генерируем конфиг из шаблона
 envsubst "$VARS" < "$TEMPLATE" > "$CONFIG"
 
-echo "Config generated:"
-echo "--------------------------------"
-cat "$CONFIG"
-echo "--------------------------------"
+echo "Config generated."
 
+echo "Validating Alertmanager config..."
+
+if /bin/amtool check-config "$CONFIG"; then
+  echo "Config validation OK"
+else
+  echo "ERROR: Alertmanager config validation failed"
+  exit 1
+fi
+
+echo "Starting Alertmanager..."
 # Запускаем Alertmanager
 exec /bin/alertmanager --config.file="$CONFIG" "$@"

@@ -15,6 +15,7 @@ RUN apk add --no-cache gettext
 
 # копируем бинарник alertmanager из официального образа
 COPY --from=alertmanager_src /bin/alertmanager /bin/alertmanager
+COPY --from=alertmanager_src /bin/amtool /bin/amtool
 
 WORKDIR /etc/alertmanager
 COPY monitoring/alertmanager.yml.tmpl .
