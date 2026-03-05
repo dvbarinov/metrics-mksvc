@@ -1,13 +1,16 @@
 FROM alpine:3.19
 
+# Аргумент для версии Alertmanager (по умолчанию v0.26.0)
+ARG ALERTMANAGER_VERSION=v0.26.0
+
 # CA certificates для HTTPS
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates bash
 
 # для envsubst
 RUN apk add --no-cache gettext
 
 # копируем бинарник alertmanager из официального образа
-COPY --from=prom/alertmanager:v0.26.0 /bin/alertmanager /bin/alertmanager
+COPY --from=prom/alertmanager:${ALERTMANAGER_VERSION} /bin/alertmanager /bin/alertmanager
 
 COPY monitoring/alertmanager.yml.tmpl /etc/alertmanager/
 WORKDIR /etc/alertmanager

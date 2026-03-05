@@ -26,6 +26,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.alertmanager
+      args:
+        ALERTMANAGER_VERSION: v0.26.0
+    image: my-alertmanager:v0.26.0
     container_name: alertmanager
     ports:
       - "9093:9093"
