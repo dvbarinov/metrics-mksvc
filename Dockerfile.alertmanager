@@ -1,7 +1,7 @@
 FROM alpine:3.19
 
-# Аргумент для версии Alertmanager (по умолчанию v0.26.0)
-ARG ALERTMANAGER_VERSION=v0.26.0
+# Аргумент для версии Alertmanager
+ARG ALERTMANAGER_VERSION
 
 # CA certificates для HTTPS
 RUN apk add --no-cache ca-certificates bash
