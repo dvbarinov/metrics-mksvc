@@ -30,7 +30,7 @@ services:
     ports:
       - "9093:9093"
     volumes:
-      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      #- ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
       - ./monitoring/templates:/etc/alertmanager/templates
       - alertmanager_v:/alertmanager
     environment:
@@ -46,7 +46,7 @@ services:
       - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
       - ALERTMANAGER_EXTERNAL_URL=${ALERTMANAGER_EXTERNAL_URL}
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
+     # - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
       - '--web.external-url=http://localhost:9093'
     networks:
