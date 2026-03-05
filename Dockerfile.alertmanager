@@ -1,0 +1,15 @@
+FROM alpine:3.19
+
+# CA certificates для HTTPS
+RUN apk add --no-cache ca-certificates
+
+RUN apk add --no-cache gettext
+
+# копируем бинарник alertmanager из официального образа
+COPY --from=prom/alertmanager:v0.26.0 /bin/alertmanager /bin/alertmanager
+
+# COPY monitoring/alertmanager.yml.tmpl /etc/alertmanager/
+# WORKDIR /etc/alertmanager
+
+# ENTRYPOINT ["/bin/sh", "-c", "envsubst < alertmanager.yml.tmpl > alertmanager.yml && exec /bin/alertmanager --config.file=alertmanager.yml"]
+ENTRYPOINT ["/bin/alertmanager"]
