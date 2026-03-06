@@ -104,7 +104,6 @@ def create_app() -> FastAPI:
     )
 
     # Инициализация инструментатора Prometheus
-    # Исправлено: убраны несуществующие параметры
     Instrumentator(
         should_group_status_codes=True,
         should_ignore_untemplated=True,

@@ -90,7 +90,7 @@ groups:
           description: "CPU usage превышает 80% (текущее значение: {{ $value }}%)"
 
       - alert: HighMemoryUsage
-        expr: process_resident_memory_bytes{job="metrics-dashboard"} > 500000000
+        expr: process_resident_memory_mbytes{job="metrics-dashboard"} > 500
         for: 5m
         labels:
           severity: warning
