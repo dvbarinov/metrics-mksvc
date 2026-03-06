@@ -133,7 +133,7 @@ class PrometheusExporter:
 
             # Берём первую метрику для определения структуры
             sample = metric_instances[0]
-            base_name = sanitize_metric_name(f"{sample['service_name']}_{sample['metric_name']}")
+            base_name = sanitize_metric_name(f"{sample['metric_name']}") # {sample['service_name']}_
 
             # Определяем тип метрики по имени
             metric_type = self._determine_metric_type(sample['metric_name'])
@@ -144,6 +144,7 @@ class PrometheusExporter:
 
             # Генерируем метрики для каждого экземпляра
             for instance in metric_instances:
+                # print("instance", instance)
                 # Формируем лейблы из тегов
                 labels = {
                     'service': instance['service_name'],
@@ -155,21 +156,22 @@ class PrometheusExporter:
 
                 # Генерируем разные варианты метрик
                 if metric_type == 'gauge':
-                    lines.append(f'{base_name}{{type="avg"{label_str}}} {instance["avg_value"]}')
-                    lines.append(f'{base_name}{{type="max"{label_str}}} {instance["max_value"]}')
-                    lines.append(f'{base_name}{{type="min"{label_str}}} {instance["min_value"]}')
+                    lines.append(f'{base_name}{{type="avg", {label_str}}} {instance["avg_value"]}')
+                    lines.append(f'{base_name}{{type="max", {label_str}}} {instance["max_value"]}')
+                    lines.append(f'{base_name}{{type="min", {label_str}}} {instance["min_value"]}')
 
                     # Перцентили, если есть
+
                     if instance['p50'] is not None:
-                        lines.append(f'{base_name}{{type="p50"{label_str}}} {instance["p50"]}')
+                        lines.append(f'{base_name}{{type="p50", {label_str}}} {instance["p50"]}')
                     if instance['p95'] is not None:
-                        lines.append(f'{base_name}{{type="p95"{label_str}}} {instance["p95"]}')
+                        lines.append(f'{base_name}{{type="p95", {label_str}}} {instance["p95"]}')
                     if instance['p99'] is not None:
-                        lines.append(f'{base_name}{{type="p99"{label_str}}} {instance["p99"]}')
+                        lines.append(f'{base_name}{{type="p99", {label_str}}} {instance["p99"]}')
 
                 elif metric_type == 'counter':
-                    lines.append(f'{base_name}{{type="total"{label_str}}} {instance["count"]}')
-                    lines.append(f'{base_name}{{type="avg"{label_str}}} {instance["avg_value"]}')
+                    lines.append(f'{base_name}{{type="total", {label_str}}} {instance["count"]}')
+                    lines.append(f'{base_name}{{type="avg", {label_str}}} {instance["avg_value"]}')
 
                 elif metric_type == 'histogram':
                     # Базовое значение
@@ -177,13 +179,16 @@ class PrometheusExporter:
                     lines.append(f'{base_name}_count{{{label_str}}} {instance["count"]}')
 
                     # Bucket'ы для гистограммы
+                    print("ПЕРЦЕНТИЛИ histogram")
                     if instance['p95'] is not None:
+                        print('p95', instance['p95'])
                         lines.append(
-                            f'{base_name}_bucket{{le="{instance["p95"]}"{label_str}}} {int(instance["count"] * 0.95)}')
+                            f'{base_name}_bucket{{le="{instance["p95"]}", {label_str}}} {int(instance["count"] * 0.95)}')
                     if instance['p99'] is not None:
+                        print('p99', instance['p99'])
                         lines.append(
-                            f'{base_name}_bucket{{le="{instance["p99"]}"{label_str}}} {int(instance["count"] * 0.99)}')
-                    lines.append(f'{base_name}_bucket{{le="+Inf"{label_str}}} {instance["count"]}')
+                            f'{base_name}_bucket{{le="{instance["p99"]}", {label_str}}} {int(instance["count"] * 0.99)}')
+                    lines.append(f'{base_name}_bucket{{le="+Inf", {label_str}}} {instance["count"]}')
 
             lines.append('')  # Пустая строка между метриками
 
