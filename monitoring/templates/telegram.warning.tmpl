@@ -1,0 +1,28 @@
+{{ define "telegram.critical" }}
+🚨 <b>ALERT</b> 🚨
+
+<b>{{ .CommonAnnotations.summary }}</b>
+
+{{ .CommonAnnotations.description }}
+
+Severity: {{ .CommonLabels.severity }}
+Service: {{ .CommonLabels.service }}
+
+{{ range .Alerts }}
+━━━━━━━━━━━━━━━━
+Instance: {{ .Labels.instance }}
+Region: {{ .Labels.region }}
+Value: {{ .Value }}
+
+Started: {{ .StartsAt.Format "15:04:05" }}
+{{ if .EndsAt.IsZero }}
+Status: FIRING
+{{ else }}
+Status: ✅ RESOLVED
+{{ end }}
+{{ end }}
+
+📊 Prometheus: http://localhost:9090/alerts
+📈 Grafana: http://localhost:3001
+🔔 Alertmanager: http://localhost:9093
+{{ end }}

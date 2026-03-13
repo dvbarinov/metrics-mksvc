@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import metrics, ws
+from app.api.v1.endpoints import metrics, ws, prometheus
 
 # Создаем главный роутер для версии API v1
 api_router = APIRouter()
@@ -11,11 +11,15 @@ api_router.include_router(
     prefix="/metrics",
     tags=["Metrics"]
 )
-
 api_router.include_router(
     ws.router,
     prefix="/ws",
     tags=["WebSocket"]
+)
+api_router.include_router(
+    prometheus.router,
+    prefix="/prometheus",
+    tags=["prometheus"]
 )
 
 # Экспортируем список роутеров для подключения в main.py

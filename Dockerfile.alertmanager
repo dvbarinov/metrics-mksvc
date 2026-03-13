@@ -1,0 +1,38 @@
+# Аргумент для версии Alertmanager
+ARG ALERTMANAGER_VERSION
+
+# stage с официальным alertmanager
+FROM prom/alertmanager:${ALERTMANAGER_VERSION} AS alertmanager_src
+
+# основной образ
+FROM alpine:3.19
+
+# CA certificates для HTTPS
+RUN apk add --no-cache ca-certificates bash
+
+# для envsubst
+RUN apk add --no-cache gettext
+
+# Создаём своего пользователя alertmanageruser (UID 1000 для удобства работы с томами)
+RUN adduser -D -u 1000 alertmanageruser
+
+# копируем бинарники alertmanager и amtool из stage с официальным образом alertmanager
+COPY --from=alertmanager_src /bin/alertmanager /bin/alertmanager
+COPY --from=alertmanager_src /bin/amtool /bin/amtool
+
+# Копируем и разрешаем исполнение скрипта для запуска (пока под root)
+COPY monitoring/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /etc/alertmanager
+COPY monitoring/alertmanager.yml.tmpl .
+
+# Даем права пользователю alertmanageruser на конфиг и шаблоны
+RUN chown -R alertmanageruser:alertmanageruser /etc/alertmanager
+
+# Переключаемся на non-root пользователя
+USER alertmanageruser
+
+# ENTRYPOINT ["/bin/alertmanager"]
+# ENTRYPOINT ["/bin/sh", "-c", "envsubst < alertmanager.yml.tmpl > alertmanager.yml && exec /bin/alertmanager --config.file=alertmanager.yml"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,0 +1,27 @@
+{{ define "slack.critical.text" }}
+:red_circle: *CRITICAL ALERT* :red_circle:
+
+*{{ .CommonAnnotations.summary }}*
+
+{{ .CommonAnnotations.description }}
+
+*Severity:* {{ .CommonLabels.severity }}
+*Service:* {{ .CommonLabels.service }}
+
+{{ range .Alerts }}
+---
+:warning: *Instance:* {{ .Labels.instance }}
+:earth_americas: *Region:* {{ .Labels.region }}
+
+:clock1: *Started:* {{ .StartsAt.Format "15:04:05" }}
+{{ if .EndsAt.IsZero }}
+:fire: *Status:* FIRING
+{{ else }}
+:white_check_mark: *Status:* RESOLVED at {{ .EndsAt.Format "15:04:05" }}
+{{ end }}
+{{ end }}
+
+:rotating_light: *ACTION REQUIRED!* :rotating_light:
+
+<http://localhost:9090/alerts|:bar_chart: Prometheus> | <http://localhost:3001|:desktop_computer: Grafana> | <http://localhost:9093|:bell: Alertmanager>
+{{ end }}

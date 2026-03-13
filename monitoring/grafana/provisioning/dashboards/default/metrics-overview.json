@@ -1,0 +1,80 @@
+{
+    "id": null,
+    "uid": "metrics-overview",
+    "title": "Metrics Overview",
+    "tags": ["metrics", "dashboard"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Latency by Region",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "api_gateway_latency_ms{type=\"avg\"}",
+            "legendFormat": "{{region}} - {{version}}",
+            "refId": "A"
+          }
+        ],
+        "xaxis": {
+          "mode": "time",
+          "show": true
+        },
+        "yaxes": [
+          {
+            "label": "Latency (ms)",
+            "show": true,
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "RPS by Service",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "api_gateway_rps{type=\"avg\"}",
+            "legendFormat": "{{service}} - {{region}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "auth_service_error_rate{type=\"avg\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    }
+}

@@ -1,0 +1,60 @@
+global:
+  # Частота сбора метрик
+  scrape_interval: 15s
+  # Частота оценки правил
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'metrics-dashboard'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      scheme: http
+      timeout: 10s
+
+# Правила алертов
+rule_files:
+  - "/etc/prometheus/rules/alerts.yml"
+
+scrape_configs:
+  # Сбор метрик с нашего сервиса
+  - job_name: 'metrics-dashboard'
+    metrics_path: '/api/v1/prometheus/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          # 🐧 Linux: используем IP хоста в docker0
+          # 🍎🪟 Mac/Windows: host.docker.internal работает
+          - 'host.docker.internal:8000'
+    # Опционально: авторизация
+    # bearer_token: 'your-token-here'
+
+    # Мета-лейблы для идентификации
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'metrics-dashboard'
+
+  # Внутренние метрики самого сервиса (от FastAPI Instrumentator)
+  - job_name: 'metrics-dashboard-internal'
+    metrics_path: '/metrics/internal'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          # 🐧 Linux: используем IP хоста в docker0
+          # 🍎🪟 Mac/Windows: host.docker.internal работает
+          - 'host.docker.internal:8000'
+
+  # Опционально: Prometheus сам себя
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Alertmanager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']

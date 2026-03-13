@@ -1,0 +1,179 @@
+groups:
+  # ========== МЕТРИКИ НАШЕГО СЕРВИСА ==========
+  - name: metrics-dashboard-alerts
+    interval: 30s
+    rules:
+      # Высокая задержка (латентность)
+      - alert: HighLatency
+        expr: api_gateway_latency_ms{type="p95"} > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "Высокая задержка в {{ $labels.region }} ({{ $labels.version }})"
+          description: "P95 latency превышает 100ms (текущее значение: {{ $value }}ms)"
+          dashboard: "http://localhost:3001/d/metrics-overview"
+
+      - alert: CriticalLatency
+        expr: api_gateway_latency_ms{type="p99"} > 200
+        for: 1m
+        labels:
+          severity: critical
+          service: api-gateway
+        annotations:
+          summary: "КРИТИЧЕСКАЯ задержка в {{ $labels.region }}"
+          description: "P99 latency превышает 200ms (текущее значение: {{ $value }}ms). Требуется срочное вмешательство!"
+
+      # Низкий RPS (возможно, сервис упал)
+      - alert: LowRPS
+        expr: api_gateway_rps{type="avg"} < 100
+        for: 3m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "Низкий RPS в {{ $labels.region }}"
+          description: "Средний RPS упал ниже 100 (текущее значение: {{ $value }})"
+
+      # Высокий процент ошибок
+      - alert: HighErrorRate
+        expr: auth_service_error_rate{type="avg"} > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: auth-service
+        annotations:
+          summary: "Высокий процент ошибок в auth-service"
+          description: "Error rate превышает 5% (текущее значение: {{ $value }}%)"
+
+      - alert: CriticalErrorRate
+        expr: auth_service_error_rate{type="max"} > 10
+        for: 1m
+        labels:
+          severity: critical
+          service: auth-service
+        annotations:
+          summary: "КРИТИЧЕСКИЙ процент ошибок в auth-service"
+          description: "Максимальный error rate превышает 10% (текущее значение: {{ $value }}%)"
+
+      # ========== СОСТОЯНИЕ СЕРВИСА ==========
+      - alert: ServiceDown
+        expr: metrics_collector_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: metrics-collector
+        annotations:
+          summary: "Metrics collector недоступен"
+          description: "Сервис сбора метрик не отвечает"
+
+      - alert: HighScrapeInterval
+        expr: time() - metrics_collector_last_scrape_timestamp > 60
+        for: 1m
+        labels:
+          severity: warning
+          service: metrics-collector
+        annotations:
+          summary: "Данные не обновляются более 60 секунд"
+          description: "Последний сбор метрик был {{ $value }} секунд назад"
+
+      # ========== РЕСУРСЫ ==========
+      - alert: HighCPUUsage
+        expr: process_cpu_seconds_total{job="metrics-dashboard"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: metrics-api
+        annotations:
+          summary: "Высокое использование CPU"
+          description: "CPU usage превышает 80% (текущее значение: {{ $value }}%)"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_mbytes{job="metrics-dashboard"} > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: metrics-api
+        annotations:
+          summary: "Высокое использование памяти"
+          description: "Использование памяти превышает 500MB (текущее значение: {{ $value }} bytes)"
+
+      # ========== PROMETHEUS ==========
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: prometheus
+        annotations:
+          summary: "Target {{ $labels.instance }} недоступен"
+          description: "Prometheus не может собрать метрики с {{ $labels.instance }} более 1 минуты"
+
+      - alert: PrometheusHighErrorRate
+        expr: rate(prometheus_target_scrapes_total{scrape_job="metrics-dashboard"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: prometheus
+        annotations:
+          summary: "Высокий процент ошибок сбора метрик"
+          description: "Более 10% сборов метрик завершаются с ошибкой"
+
+  # ========== ДОПОЛНИТЕЛЬНЫЕ АЛЕРТЫ ==========
+  - name: custom-metrics-alerts
+    interval: 1m
+    rules:
+      - alert: LatencySpike
+        expr: |
+          (
+            api_gateway_latency_ms{type="avg"} 
+            - 
+            avg_over_time(api_gateway_latency_ms{type="avg"}[10m])
+          ) / avg_over_time(api_gateway_latency_ms{type="avg"}[10m]) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "Резкий скачок задержки в {{ $labels.region }}"
+          description: "Задержка выросла на 50% за последнюю минуту"
+
+      - alert: RPSDrop
+        expr: |
+          (
+            api_gateway_rps{type="avg"} 
+            - 
+            avg_over_time(api_gateway_rps{type="avg"}[10m])
+          ) / avg_over_time(api_gateway_rps{type="avg"}[10m]) < -0.3
+        for: 2m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "Резкое падение RPS в {{ $labels.region }}"
+          description: "RPS упал на 30% за последние 2 минуты"
+
+      - alert: RegionImbalance
+        expr: |
+          stddev by (metric_name) (
+            api_gateway_latency_ms{type="avg"}
+          ) > 20
+        for: 3m
+        labels:
+          severity: warning
+          service: api-gateway
+        annotations:
+          summary: "Дисбаланс между регионами для {{ $labels.metric_name }}"
+          description: "Стандартное отклонение задержки между регионами превышает 20мс"
+
+  - name: test-alerts
+    rules:
+      - alert: TestAlert
+        expr: vector(1)
+        labels:
+          severity: critical
+          service: test
+        annotations:
+          summary: "Тестовый алерт"
+          description: "Это тестовый алерт для проверки конфигурации"

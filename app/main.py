@@ -6,13 +6,15 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import CONTENT_TYPE_LATEST
 
 from app.api.v1.router import api_router
 from app.core.db import init_db, close_db, check_db_connection
 from app.core.broadcaster import metrics_aggregator, manager
-from prometheus_fastapi_instrumentator import Instrumentator
+from app.exporters.prometheus_exporter import exporter
 
 # Настройка логирования
 logging.basicConfig(
@@ -95,11 +97,27 @@ def create_app() -> FastAPI:
     # CORS (разрешаем запросы с фронтенда)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"], #allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+        allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Инициализация инструментатора Prometheus
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        should_respect_env_var=False,
+        should_instrument_requests_inprogress=True,
+        # Исключаем эндпоинты метрик и здоровья из мониторинга
+        excluded_handlers=["/metrics", "/metrics/internal", "/health", "/ready", "/live", "/docs", "/redoc",
+                           "/openapi.json"],
+    ).instrument(app).expose(
+        app,
+        endpoint="/metrics/internal",
+        should_gzip=True
+    )
+    logger.info("📈 Prometheus internal metrics enabled at /metrics/internal")
 
     # --- Exception Handlers ---
 
@@ -132,28 +150,97 @@ def create_app() -> FastAPI:
     # Подключаем API роутеры
     app.include_router(api_router, prefix="/api/v1")
 
+    # --- Prometheus Metrics Endpoint ---
+
+    @app.get("/metrics", tags=["Prometheus"])
+    async def prometheus_metrics(request: Request):
+        """
+        Экспорт метрик в формате Prometheus.
+
+        Prometheus будет опрашивать этот эндпоинт для сбора метрик.
+        Все теги автоматически конвертируются в лейблы.
+
+        Формат ответа: text/plain; version=0.0.4; charset=utf-8
+        """
+        from app.core.db import get_session
+
+        async for session in get_session():
+            try:
+                # Собираем метрики из БД
+                metrics_data = await exporter.collect_metrics(session, window_minutes=5)
+
+                # Генерируем формат Prometheus
+                prometheus_output = exporter.generate_prometheus_metrics(metrics_data)
+
+                return Response(
+                    content=prometheus_output,
+                    media_type=CONTENT_TYPE_LATEST,
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
+            finally:
+                await session.close()
+
+    @app.get("/metrics/debug", tags=["Prometheus"])
+    async def debug_metrics(request: Request):
+        """
+        Отладочный эндпоинт - возвращает метрики в JSON формате.
+        Полезно для отладки перед экспортом в Prometheus.
+        """
+        from app.core.db import get_session
+
+        async for session in get_session():
+            try:
+                metrics_data = await exporter.collect_metrics(session, window_minutes=5)
+                return {
+                    "metrics_count": len(metrics_data),
+                    "metrics": metrics_data,
+                    "cache_timestamp": exporter._cache_timestamp.isoformat() if exporter._cache_timestamp else None
+                }
+            finally:
+                await session.close()
+
     # Health check endpoint (для Kubernetes / Load Balancer)
     @app.get("/health", tags=["Health"])
     async def health_check():
         return {
             "status": "healthy",
-            "websocket_connections": len(manager.active_connections)
+            "websocket_connections": len(manager.active_connections),
+            "prometheus_enabled": True
         }
+
+    # Readiness check (для Kubernetes)
+    @app.get("/ready", tags=["Health"])
+    async def readiness_check():
+        db_ok = await check_db_connection()
+        return {
+            "ready": db_ok,
+            "database": "connected" if db_ok else "disconnected",
+            "prometheus": "enabled"
+        }
+
+    # Liveness check (для Kubernetes)
+    @app.get("/live", tags=["Health"])
+    async def liveness_check():
+        return {"alive": True}
 
     # Root endpoint
     @app.get("/", tags=["Root"])
     async def root():
         return {
             "message": "Metrics Dashboard API",
+            "version": "1.0.0",
             "docs": "/docs",
-            "health": "/health"
+            "health": "/health",
+            "ready": "/ready",
+            "live": "/live",
+            "prometheus_metrics": "/metrics",
+            "prometheus_internal": "/metrics/internal",
+            "prometheus_debug": "/metrics/debug"
         }
-
-    # --- Prometheus Metrics ---
-
-    # Инструментация для Prometheus (опционально)
-    if os.getenv("ENABLE_PROMETHEUS", "true").lower() == "true":
-        Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
     return app
 
@@ -171,4 +258,5 @@ if __name__ == "__main__":
         port=8000,
         reload=os.getenv("DEBUG", "false").lower() == "true",
         log_level="info",
+        access_log=True,
     )
